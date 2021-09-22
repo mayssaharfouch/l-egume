@@ -11,7 +11,7 @@ import argparse #pour parser les argument en ligne de commande
 
 try:
     import legume
-    path_ = os.path.dirname(os.path.abspath('C:\\Users\\HP\\Documents\\l-egume\\legume\\l-egume.lpy'))#local absolute path of L-egume
+    path_ = os.path.abspath('C:\\Users\\HP\\Documents\\l-egume\\legume')#local absolute path of L-egume
 except:
     path_ = r'C:\\Users\\HP\\Documents\\l-egume\\legume'#r'C:\devel\grassland'
 
