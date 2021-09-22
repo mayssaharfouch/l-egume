@@ -3,10 +3,10 @@ import os
 
 try:
     import legume
-    path_ = os.path.dirname(os.path.abspath(legume.__file__))#local absolute path of L-egume
+    path_ = os.path.dirname(os.path.abspath('C:\\Users\\HP\\Documents\\l-egume\\legume\\l-egume.lpy'))#local absolute path of L-egume
     #path_ = r'C:\devel\l-egume\legume'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\luzerne' #r'C:\devel\grassland'#
 except:
-    path_ = r'C:\devel\l-egume\legume'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\luzerne' #r'C:\devel\grassland'#
+    path_ = r'C:\\Users\\HP\\Documents\\l-egume\\legume'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\luzerne' #r'C:\devel\grassland'#
 path_leg = os.path.join(path_, 'input')#r'C:\devel\l-egume\l-egume\input'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\L-gume' #r'C:\devel\grassland'
 path_out = os.path.join(path_, 'output')#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\L-gume' #r'C:\devel\grassland'
 
@@ -49,7 +49,7 @@ import zipfile
 
 #options de simulation
 opt_residu = 1 #si 0, pas activation de mineralisation
-opt_sd = 0 #1 #genere distribution des valeurs de parametres
+opt_sd = 1 #1 #genere distribution des valeurs de parametres
 opt_covar = 0# #definie matrice de cavariance a lire dans path_variance_matrix (0 opt_sd generere tirages independants)
 opt_stressN = 1 #Active stress N; 1 = stress NNI actif (0= calcule, mais pas applique)
 opt_stressW = 1 #Active stressW; 1 = stress FTSW actif (0= calcule, mais pas applique)
@@ -134,7 +134,7 @@ par_SN, par_sol = IOxls.read_sol_param(path_sol, ongletS)
 par_SN['concrr'] = 0.#force eau de pluie / irrig a zero N, sinon apport 300 kg en irrigue!
 
 #lecture scenario valeur moyenne (si changement de parametres)
-mn_sc = os.path.join(path_leg,'liste_scenarios.xls')#'scenarios_planMorris.xls')#'liste_scenarios_exemple.xls')#(path_leg,'liste_scenarios.xls')
+mn_sc = os.path.join(path_leg,'liste_scenarios_exemple.xls')#'scenarios_planMorris.xls')#'liste_scenarios_exemple.xls')#(path_leg,'liste_scenarios.xls')
 ongletScenar1 = 'Fix2'#'Orca'#'default'#'nonFixSimTest'#'default'#'formica'#
 ongletScenar2 = 'nonFixSimTest'#'Orca2'#'default'#'OrcaVois'#'default'#'nonFix1'#'default'#'formica'#
 
