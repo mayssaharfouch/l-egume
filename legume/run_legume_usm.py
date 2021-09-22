@@ -7,9 +7,9 @@ import sys
 
 try:
     import legume
-    path_ = os.path.dirname(os.path.abspath('C:\\Users\\HP\\Documents\\l-egume\\legume\\l-egume.lpy'))#local absolute path of L-egume
+    path_ = os.path.dirname(os.path.abspath(legume.__file__))#local absolute path of L-egume
 except:
-    path_ = r'C:\\Users\\HP\\Documents\\l-egume\\legume'#r'C:\devel\grassland'
+    path_ = r'C:\devel\l-egume\legume'#r'C:\devel\grassland'
 
 #print(('path', path_))
 
