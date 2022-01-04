@@ -8,6 +8,9 @@ try:
 except:
     import RIRI5 as riri
 
+import numpy as np
+import pandas as pd
+
 
 #Temperature response funtions
 def betaT(Tmin, Tmax, q, T):
@@ -262,6 +265,29 @@ def calc_parapcoty(invar, m_lais, res_abs_i, Mcoty, age, DurGraine, carto, Param
             PARaF = 0.
 
         invar['PARiPlante'][nump].append(PARaF)
+        #m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surfcot
+        #lsFeuilBilanR.append([nump, 0, 0, 0, 'coty', surfcot, ParamP[nump]['id_grid'], carto[nump][0], carto[nump][1], carto[nump][2], vox[2], vox[1], vox[0], 0, 0])
+
+        # Plus utilise...
+
+def add_surfcoty(invar, m_lais, m_laiPlt, lsFeuilBilanR, carto, ParamP, origin_grid, na, dxyz, SLAcoty=100.):
+    """ ajout de surf cotyledon a m_lais, m_laiPlt, lsFeuilBilanR """
+    age = invar['TT']
+    Mcoty = invar['MS_coty']
+    DurGraine = riri.get_lsparami(ParamP, 'DurGraine')
+
+    for nump in range(len(carto)):
+        vox = riri.WhichVoxel(array(carto[nump]), origin_grid, na, dxyz)
+        if age[nump] <= DurGraine[nump]:  # cotyledons actifs pendant DurGraine
+            surfcot = Mcoty[nump] * SLAcoty / 10000.  # m2
+        else:
+            surfcot = 0.
+
+        if surfcot > 0.:
+            m_lais[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surfcot
+            m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surfcot
+            lsFeuilBilanR.append([nump, 0, 0, 0, 'coty', surfcot, ParamP[nump]['id_grid'], carto[nump][0], carto[nump][1], carto[nump][2], vox[2], vox[1], vox[0], 0, 0])
+
 
 def calc_Lpet(ParamP, rank, rankp, ordre, l, type=1):
     """ calcule de longueur potentielle d'un petiole (m)"""
@@ -322,10 +348,11 @@ def calcSurfScale(ParamP, tab, scale):
     # lsSurfSh = calcSurfScale(IOtable.conv_dataframe(IOtable.t_list(lsOrgans)), 'sh')
     # plus utile car fait dans calcSurfLightScales
 
-def calcSurfLightScales(ParamP, tab):
-    """ calcul le cumul de surface foliaire, surface foliaire verte et PARa au echelles plante/shoot_axe - passe la table organe une seulle fois en revue """
 
-    daxAgePiv = {}  # dico des axes qui portent des pivots et de leur age
+def calcSurfLightScales(tab):
+    """ calcul le cumul de surface foliaire, surface foliaire verte et PARa au echelles plante/shoot_axe - passe la table organe une seulle fois en revue """
+    # from dic lsFeuilBilanR : ['nump', 'nsh', 'rank', 'rankp','status', 'surf', 'id_grid', 'X','Y','Z','Vox2','Vox1','Vox0','sVox','paraF']
+
     dpS, dpSV, dpPARaF, dshS, dshSV, dshPARaF, daxS, daxSV, daxPARaF, daxPARaFsurf = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
     for i in range(len(tab['nump'])):
 
@@ -333,30 +360,14 @@ def calcSurfLightScales(ParamP, tab):
         idsh = str(tab['nump'][i]) + '_' + str(tab['nsh'][i])
         idax = str(tab['nump'][i]) + '_' + str(tab['nsh'][i]) + '_' + str(tab['rank'][i])
 
-        age = float(tab['age'][i])
-        nump = int(tab['nump'][i])
-        ordre = int(tab['ordre'][i])
-        rank = int(tab['rank'][i])
-        rankp = int(tab['rankp'][i])
-        nsh = int(tab['nsh'][i])
-        l = float(tab['l'][i])
+        PARaF = float(tab['paraF'][i])
+        surf = max(float(tab['surf'][i]), 10e-15)  # m2 #max(calc_surF(ParamP[nump], rank, rankp, ordre, l), 10e-15)  # m2
+        PARaFsurf = PARaF / (surf * 3600. * 24 / 1000000.)  #
+        if tab['status'][i] != 'sen':
+            surfV = surf
+        else:
+            surfV = 0.
 
-        surf, surfV, PARaF, PARaFsurf = 0., 0., 0., 0.
-        if tab['organ'][i] == 'Lf':
-            PARaF = float(tab['PARaF'][i])
-            surf = max(calc_surF(ParamP[nump], rank, rankp, ordre, l), 10e-15)  # m2
-            PARaFsurf = PARaF / (surf * 3600. * 24 / 1000000.)  #
-            if tab['statut'][i] != 'sen':
-                surfV = surf
-
-        if tab['organ'][i] == 'Stp':
-            PARaF = float(tab['PARaF'][i])
-            surf = calc_surS(ParamP[nump], rank, rankp, ordre, l)  # m2
-            if tab['statut'][i] != 'sen':
-                surfV = surf
-
-        if tab['organ'][i] == 'Piv':
-            daxAgePiv[idax] = age
 
         # ajoute une cle pour chaque organe (meme si pas feuille)
         IOxls.append_dic(dpS, idp, surf)
@@ -382,29 +393,57 @@ def calcSurfLightScales(ParamP, tab):
     for k in list(daxPARaFsurf.keys()):
         daxPARaFsurf[k] = max(daxPARaFsurf[k])
 
-    return dpS, dpSV, dshS, dshSV, daxS, daxSV, dpPARaF, dshPARaF, daxPARaF, daxAgePiv, daxPARaFsurf
-    # ajouter calcul du max de rayonnement par axes...?-> daxPARaFsurf
+    return dpS, dpSV, dshS, dshSV, daxS, daxSV, dpPARaF, dshPARaF, daxPARaF, daxPARaFsurf
+
+
+
+def AgePivScales(tab):
+    """ calculage pivot/RacI pour """
+    # from dic lsOrgans: ['TT','organ','nump', 'nsh', 'rank', 'rankp', 'strate', 'surf', 'PARaF','statut','age','ordre','l','Long','DOY','cutNB', 'Larg']
+
+    daxAgePiv = {}  # dico des axes qui portent des pivots et de leur age
+    for i in range(len(tab['nump'])):
+
+        idp = str(tab['nump'][i])
+        idsh = str(tab['nump'][i]) + '_' + str(tab['nsh'][i])
+        idax = str(tab['nump'][i]) + '_' + str(tab['nsh'][i]) + '_' + str(tab['rank'][i])
+
+        age = float(tab['age'][i])
+
+        if tab['organ'][i] == 'Piv':
+            daxAgePiv[idax] = age
+
+    return daxAgePiv
+    #separe de calcSurfLightScales
+
 
 
 #germination / iitialisation funcions
 def germinate(invar, ParamP, nump):
     # mis a jour pour chaque graine a germination
-    # creation des cotyledons
+    # creation des cotyledons + reste des reserves
+
     frac_coty_ini = ParamP['frac_coty_ini']
-    invar['Mcoty'][nump] = invar['MSgraine'][nump] * frac_coty_ini
-    #invar['Mfeuil'][nump] = invar['MSgraine'][nump] * frac_coty_ini
-    #invar['Naerien'][nump] = invar['Mfeuil'][nump] * ParamP['Npc_ini']/100.
+    invar['MS_coty'][nump] = invar['MS_graine'][nump] * frac_coty_ini
+    invar['Ncoty'][nump] = invar['MS_graine'][nump] * frac_coty_ini * ParamP['Npc_ini'] / 100.
+    #tout le reste initialement dans reserve
+
     # met a jour graine qui a germe et defini pools de reserve (ce qui reste dans MSgraine et N graine = reserve pour soutenir croissance ini)
-    invar['MSgraine'][nump] -= invar['Mcoty'][nump]
-    invar['Ngraine'][nump] -= invar['Mcoty'][nump] * ParamP['Npc_ini'] / 100.
-    invar['dMSgraine'][nump] = invar['MSgraine'][nump] / ParamP['DurGraine']  # delta MS fourni par degrejour par graine pendant DurGraine
+    invar['MS_graine'][nump] -= invar['MS_coty'][nump]
+    invar['Ngraine'][nump] -= invar['MS_coty'][nump] * ParamP['Npc_ini'] / 100.
+
+    #rq: de cette facon une grosse partie des reserve N n'est pas utilisee (immobilisee ds coty)
+    #je me demande si c pas la le pb de 0???
+
+    #deux constates reutilisee ensuite
+    invar['dMSgraine'][nump] = invar['MS_graine'][nump] / ParamP['DurGraine']  # delta MS fourni par degrejour par graine pendant DurGraine
     invar['dNgraine'][nump] = invar['Ngraine'][nump] / ParamP['DurGraine']  # delta QN fourni par degrejour par graine pendant DurGraine
 
     # cotyledons meurent quand DurGraine atteint -> cf calc_surfcoty
     # en toute logique pas besoin de mettre a jour Mfeuil?
 
 def reserves_graine(invar, ParamP):
-    """ calcul des reserves de graine """
+    """ calcul des flux venant des reserves de graine et met a jour MS_graine et Ngraine """
 
     graineC, graineN = [], []
     for nump in range(len(ParamP)):
@@ -417,10 +456,124 @@ def reserves_graine(invar, ParamP):
             dMSgraine = 0.
             dNgraine = 0.
 
+        #pour eviter negatif
+        if dMSgraine > invar['MS_graine'][nump]:
+            dMSgraine = invar['MS_graine'][nump]
+
+        if dNgraine > invar['Ngraine'][nump]:
+            dNgraine = invar['Ngraine'][nump]
+
         graineC.append(dMSgraine)
-        graineN.append(dMSgraine)
+        graineN.append(dNgraine)
+
+    invar['MS_graine'] = array(invar['MS_graine']) - array(graineC)
+    invar['Ngraine'] = array(invar['Ngraine']) - array(graineN)
 
     return array(graineC), array(graineN)
+
+
+def calc_paraF(dicFeuilBilanR, m_lais, res_abs_i):
+    """ update paraF and sVox calculation in lsFeuilBilanR + conv to dico """
+    # ['nump', 'nsh', 'rank', 'rankp','status', 'surf','id_grid', 'X','Y','Z','Vox2','Vox1','Vox0','sVox','paraF']
+    nblignes = len(dicFeuilBilanR['nump']) #- 1
+    df = dicFeuilBilanR #IOtable.conv_dataframe(IOtable.t_list(lsFeuilBilanR))
+    if nblignes > 0:
+        for i in range(nblignes):
+            # update sVox
+            id_grid = df['id_grid'][i]
+            surf = df['surf'][i]
+            vox = [df['Vox0'][i], df['Vox1'][i], df['Vox2'][i]]
+            sVOX = m_lais[id_grid][vox[2]][vox[1]][vox[0]]
+            paraF = res_abs_i[id_grid][vox[2]][vox[1]][vox[0]] * surf / sVOX * 3600. * 24 / 1000000.
+
+            # mise a jour
+            df['sVox'][i] = sVOX
+            df['paraF'][i] = paraF
+
+    return df
+
+
+def calc_para_Plt(invar, lsFeuilBilanR):
+    """ update invar plant light interception + conv to pd data.frame """
+    # conversion data.frame
+    lsFeuilBilanR = pd.DataFrame(lsFeuilBilanR)
+    nbplt = len(invar['TT'])
+
+    # split pour PARi
+    dfPARa = lsFeuilBilanR.groupby(lsFeuilBilanR['nump'])
+    groupOK = list(dfPARa.groups.keys())
+    pari = []
+    for nump in range(nbplt):
+        if nump in groupOK:
+            x = dfPARa.get_group(nump)
+            pari.append(np.sum(x['paraF']))
+        else:
+            pari.append(0.)
+
+    # split pour PARa (sans feuilles sen)
+    lsFeuilBilanR_sen = lsFeuilBilanR[lsFeuilBilanR["status"] != 'sen']
+    dfPARa = lsFeuilBilanR_sen.groupby(lsFeuilBilanR_sen['nump'])
+    groupOK = list(dfPARa.groups.keys())
+    para = []
+    for nump in range(nbplt):
+        if nump in groupOK:
+            x = dfPARa.get_group(nump)
+            para.append(np.sum(x['paraF']))
+        else:
+            para.append(0.)
+
+    # MAJ de invar
+    invar['parip'] = array(pari)
+    invar['parap'] = array(para)
+
+    # return lsFeuilBilanR
+
+
+
+def Turnover_compart_Perenne(invar, ParamP):
+    """ calcul des flux lie a turnover des tissus d'un comaprtiment perennes """
+
+    dMSenNonRec, dMSenPiv = [], []
+    perteN_NonRec, perteN_Piv = [], []
+    minPiv = 0.001
+    for nump in range(len(ParamP)):
+        dTT = invar['Udev'][nump]  # invar['dTT'][nump]
+        delai_senperenne = ParamP[nump]['delai_senperenne']  # 500. #parametre -> rq: jouer sur ce parametre pour faire mourrir piv TV?
+        if invar['TTudev'][nump] > delai_senperenne and invar['aliveB'][nump] == 0: #delai passe et vivante
+            TOrate_nonrec = ParamP[nump]['TOrate_nonrec'] #0.005 # a passer en parametre
+            TOrate_piv = ParamP[nump]['TOrate_piv'] #0.005  # a passer en parametre
+            dMS_aerienNonRec = invar['MS_aerienNonRec'][nump] * TOrate_nonrec * dTT
+            if invar['MS_pivot'][nump] > minPiv:
+                #TOpivot au dessus d'une taille mini
+                dMS_piv = invar['MS_pivot'][nump] * TOrate_piv * dTT
+            else:
+                dMS_piv = 0.
+
+            perteN_NonRec_i = invar['NaerienNonRec'][nump] * TOrate_nonrec * dTT
+            perteN_Piv_i = invar['Npivot'][nump] * TOrate_piv * dTT
+        else:
+            dMS_aerienNonRec = 0.
+            dMS_piv = 0.
+            perteN_NonRec_i = 0.
+            perteN_Piv_i = 0.
+
+        dMSenNonRec.append(dMS_aerienNonRec)
+        dMSenPiv.append(dMS_piv)
+        perteN_NonRec.append(perteN_NonRec_i)
+        perteN_Piv.append(perteN_Piv_i)
+
+    #MAJ des compartiments
+    invar['MS_aerienNonRec'] -= array(dMSenNonRec)
+    invar['MS_pivot'] = array(invar['MS_pivot'])
+    invar['MS_pivot'] -= array(dMSenPiv) #faire un MSpiv_net?
+    invar['MS_pivot'] = invar['MS_pivot'].tolist()
+
+    invar['NaerienNonRec'] -= array(perteN_NonRec)
+    invar['Npivot'] -= array(perteN_Piv)
+
+    #renvoie les flux
+    return array(dMSenNonRec), array(dMSenPiv), array(perteN_NonRec), array(perteN_Piv)
+
 
 
 
@@ -551,17 +704,15 @@ def Cremob(DemCp, R_DemandC_Shoot, MSPiv, frac_remob=0.1):
     ratio_seuil = array(deepcopy(R_DemandC_Shoot))
     ratio_seuil[ratio_seuil > 1.] = 1.  # borne ratio demande a 1
     dem_non_couv = array(DemCp) * (1 - ratio_seuil)
-    dem_non_couv_dispo = frac_remob * array(
-        MSPiv) - dem_non_couv  # depend d'un fraction remobilisable du pivot par jour
-    dem_non_couv_dispo[dem_non_couv_dispo < 0] = dem_non_couv[dem_non_couv_dispo < 0] + dem_non_couv_dispo[
-        dem_non_couv_dispo < 0]  # borne remobilisation a poids du pivot
+    dem_non_couv_dispo = frac_remob * array(MSPiv) - dem_non_couv  # depend d'un fraction remobilisable du pivot par jour
+    dem_non_couv_dispo[dem_non_couv_dispo < 0] = dem_non_couv[dem_non_couv_dispo < 0] + dem_non_couv_dispo[dem_non_couv_dispo < 0]  # borne remobilisation a poids du pivot
     remob = deepcopy(dem_non_couv_dispo)
     remob[dem_non_couv <= 0.] = 0.  # met a zero si couvert
     for i in range(len(remob)):
         remob[i] = min(remob[i], dem_non_couv[i])
 
     return remob
-    # frac_remob dans ParamP?
+    # frac_remob dans ParamP -> fait
 
 
 #calcul variables internes / intermediaire
@@ -765,6 +916,29 @@ def row4(p, vois, Lrow=50., nbprow=125,  opt=0):
     #res ,carto=row4(1, 2, Lrow=50., nbprow=125,  opt=0)
     # dans un fichier d'initialiation?
     #prevoir nbprow different par esp... et melange on row...
+
+
+def reduce_ParamP(ParamP, nom):
+    """ pour extraire une espece du ParamP """
+    ls_name = riri.get_lsparami(ParamP, 'name')
+    newParamP, lsid_reduce = [], []
+    for i in range(len(ls_name)):
+        if ParamP[i]['name']==nom:
+            newParamP.append(ParamP[i])
+            lsid_reduce.append(i)
+
+    return newParamP, lsid_reduce
+
+def reduce_carto(carto, lsid_reduce):
+    """ pour extraire une espece de carto a partir des id_reduce du ParamP """
+    newcarto = []
+    for i in range(len(carto)):
+        if i in lsid_reduce:
+            newcarto.append(carto[i])
+
+    return newcarto
+
+
 
 
 def ls_idvois_ordre1(n, cote, nblignes):
